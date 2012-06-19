@@ -133,6 +133,7 @@ def compileUi(uifile, pyfile, execute=False, indent=4, from_imports=False):
         uifname = uifile.name
     except AttributeError:
         uifname = uifile
+        uifile = open(uifile, 'r')
 
     indenter.indentwidth = indent
 

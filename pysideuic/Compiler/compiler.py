@@ -88,7 +88,7 @@ class UICompiler(UIParser):
 
     def compileUi(self, input_stream, output_stream, from_imports):
         createCodeIndenter(output_stream)
-        w = self.parse(input_stream)
+        w = self.parse(input_stream.name)
 
         indenter = getIndenter()
         indenter.write("")
