@@ -118,6 +118,10 @@ public:
 
 private:
     void makeFileNamesAbsolute(const QDir &oldPath);
+    // A helper method to output translations with multiple variants.  These
+    // may appear in simple translation tags or inside numerusform tags.
+    void saveLengthVariants(QTextStream &t, const QString &indent,
+                            const QString &oneString) const;
 
     typedef QMap<MetaTranslatorMessage, int> TMM;
     typedef QMap<int, MetaTranslatorMessage> TMMInv;
