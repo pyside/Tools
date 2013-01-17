@@ -41,6 +41,7 @@ public:
     TranslatorMessage();
     TranslatorMessage(const char * context, const char * sourceText,
                        const char * comment,
+                       const char * translatorComment,
                        const QString &fileName,
                        int lineNumber,
                        const QStringList& translations = QStringList());
@@ -52,6 +53,9 @@ public:
     const char *context() const { return cx.isNull() ? 0 : cx.constData(); }
     const char *sourceText() const { return st.isNull() ? 0 : st.constData(); }
     const char *comment() const { return cm.isNull() ? 0 : cm.constData(); }
+    const char *translatorComment() const
+        { return m_translatorComment.isNull()
+            ? 0 : m_translatorComment.constData(); }
 
     inline void setTranslations(const QStringList &translations);
     QStringList translations() const { return m_translations; }
@@ -87,6 +91,7 @@ private:
     QByteArray cx;
     QByteArray st;
     QByteArray cm;
+    QByteArray  m_translatorComment;
     QStringList m_translations;
     QString     m_fileName;
     int         m_lineNumber;
@@ -128,11 +133,11 @@ public:
 
     void insert(const TranslatorMessage&);
     inline void insert(const char *context, const char *sourceText, const QString &fileName, int lineNo, const QStringList &translations) {
-        insert(TranslatorMessage(context, sourceText, "", fileName, lineNo, translations));
+        insert(TranslatorMessage(context, sourceText, "", "", fileName, lineNo, translations));
     }
     void remove(const TranslatorMessage&);
     inline void remove(const char *context, const char *sourceText) {
-        remove(TranslatorMessage(context, sourceText, "", QLatin1String(""), -1));
+        remove(TranslatorMessage(context, sourceText, "", "", QLatin1String(""), -1));
     }
     bool contains(const char *context, const char *sourceText, const char * comment = 0) const;
     bool contains(const char *context, const char *comment, const QString &fileName, int lineNumber) const;

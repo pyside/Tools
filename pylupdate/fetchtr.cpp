@@ -630,6 +630,7 @@ static void parse( MetaTranslator *tor, const char *initialContext,
                     if (!text.isEmpty())
                     {
                         tor->insert(MetaTranslatorMessage(context, text, com,
+                                                          "",
                                 yyFileName, yyLineNo,
                                 QStringList(), utf8,
                                 MetaTranslatorMessage::Unfinished, plural));
@@ -678,6 +679,7 @@ static void parse( MetaTranslator *tor, const char *initialContext,
                     if (!text.isEmpty())
                     {
                         tor->insert( MetaTranslatorMessage(context, text, com,
+                                                           "",
                                                         yyFileName, yyLineNo,
                                                         QStringList(), utf8,
                                                         MetaTranslatorMessage::Unfinished,
@@ -705,6 +707,7 @@ static void parse( MetaTranslator *tor, const char *initialContext,
                         context = com.left( k );
                         com.remove( 0, k + 1 );
                         tor->insert( MetaTranslatorMessage(context, "", com,
+                                                           "",
                                                         yyFileName, yyLineNo,
                                                         QStringList(), false) );
 
@@ -847,7 +850,8 @@ void UiHandler::flush()
 {
     if ( !context.isEmpty() && !source.isEmpty() )
         tor->insert( MetaTranslatorMessage(context.toUtf8(), source.toUtf8(),
-                                           comment.toUtf8(), QString(fname), m_lineNumber,
+                                           comment.toUtf8(), "",
+                                           QString(fname), m_lineNumber,
                                            QStringList(), true) );
     source.truncate( 0 );
     comment.truncate( 0 );
