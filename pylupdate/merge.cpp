@@ -77,7 +77,7 @@ void merge( const MetaTranslator *tor, const MetaTranslator *virginTor, MetaTran
                     // ### The QString() cast is evil
                     if (getSimilarityScore(QString(m.sourceText()), mv.sourceText()) >= textSimilarityThreshold) {
                         // It is just slightly modified, assume that it is the same string
-                        m = MetaTranslatorMessage(m.context(), mv.sourceText(), m.comment(), m.fileName(), m.lineNumber(), m.translations());
+                        m = MetaTranslatorMessage(m.context(), mv.sourceText(), m.comment(), m.translatorComment(), m.fileName(), m.lineNumber(), m.translations());
                         m.setPlural(mv.isPlural());
 
                         // Mark it as unfinished. (Since the source text was changed it might require re-translating...)

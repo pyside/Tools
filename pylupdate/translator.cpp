@@ -807,20 +807,20 @@ TranslatorMessage Translator::findMessage(const char *context, const char *sourc
 
         // Either we want to find an item that matches context, sourcetext (and optionally comment)
         // Or we want to find an item that matches context, filename, linenumber (and optionally comment)
-        it = d->messages.find(TranslatorMessage(context, sourceText, comment, myFilename, myLineNumber));
+        it = d->messages.find(TranslatorMessage(context, sourceText, comment, "", myFilename, myLineNumber));
         if (it != d->messages.constEnd())
             return it.key();
 
         if (comment[0]) {
-            it = d->messages.find(TranslatorMessage(context, sourceText, "", myFilename, myLineNumber));
+            it = d->messages.find(TranslatorMessage(context, sourceText, "", "", myFilename, myLineNumber));
             if (it != d->messages.constEnd())
                 return it.key();
         }
-        it = d->messages.find(TranslatorMessage(context, "", comment, myFilename, myLineNumber));
+        it = d->messages.find(TranslatorMessage(context, "", comment, "", myFilename, myLineNumber));
         if (it != d->messages.constEnd())
             return it.key();
         if (comment[0]) {
-            it = d->messages.find(TranslatorMessage(context, "", "", myFilename, myLineNumber));
+            it = d->messages.find(TranslatorMessage(context, "", "", "", myFilename, myLineNumber));
             if (it != d->messages.constEnd())
                 return it.key();
         }
@@ -914,10 +914,13 @@ TranslatorMessage::TranslatorMessage()
 TranslatorMessage::TranslatorMessage(const char * context,
                                         const char * sourceText,
                                         const char * comment,
+                                        const char * translatorComment,
                                         const QString &fileName,
                                         int lineNumber,
                                         const QStringList& translations)
-    : cx(context), st(sourceText), cm(comment), m_translations(translations),
+    : cx(context), st(sourceText), cm(comment),
+      m_translatorComment(translatorComment),
+      m_translations(translations),
       m_fileName(fileName), m_lineNumber(lineNumber)
 {
     // 0 means we don't know, "" means empty
@@ -927,6 +930,8 @@ TranslatorMessage::TranslatorMessage(const char * context,
         st = "";
     if (cm == (const char*)0)
         cm = "";
+    if (m_translatorComment == (const char*)0)
+        m_translatorComment = "";
     h = elfHash(st + cm);
 }
 
@@ -936,7 +941,9 @@ TranslatorMessage::TranslatorMessage(const char * context,
 */
 
 TranslatorMessage::TranslatorMessage(const TranslatorMessage & m)
-    : cx(m.cx), st(m.st), cm(m.cm), m_translations(m.m_translations),
+    : cx(m.cx), st(m.st), cm(m.cm),
+      m_translatorComment(m.m_translatorComment),
+      m_translations(m.m_translations),
       m_fileName(m.m_fileName), m_lineNumber(m.m_lineNumber)
 {
     h = m.h;
@@ -955,6 +962,7 @@ TranslatorMessage & TranslatorMessage::operator=(
     cx = m.cx;
     st = m.st;
     cm = m.cm;
+    m_translatorComment = m.m_translatorComment;
     m_translations = m.m_translations;
     m_fileName = m.m_fileName;
     m_lineNumber = m.m_lineNumber;

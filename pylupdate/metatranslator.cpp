@@ -34,6 +34,16 @@
 #include <qxml.h>
 #include <qlocale.h>
 
+/*
+ * Each string may contain multiple versions of the same content.  Qt
+ * automatically splits QStrings at the Unicode 'STRING TERMINATOR' character,
+ * and only displays the first variant that fits in the widget's current
+ * geometry.  This is important for translations because variants of different
+ * lengths may appear in the TS file, and Qt will decide which variant to
+ * display based on available screen space.
+ */
+static const uint VARIANT_DELIMITER = 0x9c;
+
 static bool encodingIsUtf8( const QXmlAttributes& atts )
 {
     for ( int i = 0; i < atts.length(); i++ ) {
@@ -72,6 +82,7 @@ private:
     QString context;
     QString source;
     QString comment;
+    QString m_translatorComment;
     QStringList translations;
     QString m_fileName;
     int     m_lineNumber;
@@ -109,6 +120,7 @@ bool TsHandler::startElement( const QString& /* namespaceURI */,
             context.truncate( 0 );
             source.truncate( 0 );
             comment.truncate( 0 );
+            m_translatorComment.truncate( 0 );
             translations.clear();
             contextIsUtf8 = encodingIsUtf8( atts );
         } else if ( qName == QString("message") ) {
@@ -116,6 +128,7 @@ bool TsHandler::startElement( const QString& /* namespaceURI */,
             type = MetaTranslatorMessage::Finished;
             source.truncate( 0 );
             comment.truncate( 0 );
+            m_translatorComment.truncate( 0 );
             translations.clear();
             messageIsUtf8 = encodingIsUtf8( atts );
             m_isPlural = atts.value(QLatin1String("numerus")).compare(QLatin1String("yes")) == 0;
@@ -159,31 +172,46 @@ bool TsHandler::endElement( const QString& /* namespaceURI */,
         } else {
             if ( contextIsUtf8 )
                 tor->insert( MetaTranslatorMessage(context.toUtf8(),
-                             ContextComment,
+                             ContextComment, 0,
                              accum.toUtf8(), QString(), 0,
                              QStringList(), true,
                              MetaTranslatorMessage::Unfinished) );
             else
                 tor->insert( MetaTranslatorMessage(context.toAscii(),
-                             ContextComment,
+                             ContextComment, 0,
                              accum.toAscii(), QString(), 0,
                              QStringList(), false,
                              MetaTranslatorMessage::Unfinished) );
         }
+    } else if ( qName == QString("translatorcomment") ) {
+        m_translatorComment = accum;
     } else if ( qName == QString("numerusform") ) {
         translations.append(accum);
         m_isPlural = true;
     } else if ( qName == QString("translation") ) {
         if (translations.isEmpty())
             translations.append(accum);
+    } else if ( qName == QString("lengthvariant") ) {
+        // The DTD comments state that lengthvariant may appear within
+        // numerusform, but not the other way around.
+        if (translations.isEmpty())
+            translations.append( accum );
+        else {
+            translations.last().append( VARIANT_DELIMITER );
+            translations.last().append( accum );
+        }
     } else if ( qName == QString("message") ) {
         if ( messageIsUtf8 )
             tor->insert( MetaTranslatorMessage(context.toUtf8(), source.toUtf8(),
-                                               comment.toUtf8(), m_fileName, m_lineNumber,
+                                               comment.toUtf8(),
+                                               m_translatorComment.toUtf8(),
+                                               m_fileName, m_lineNumber,
                                                translations, true, type, m_isPlural) );
         else
             tor->insert( MetaTranslatorMessage(context.toAscii(), source.toAscii(),
-                                               comment.toAscii(), m_fileName, m_lineNumber,
+                                               comment.toAscii(),
+                                               m_translatorComment.toAscii(),
+                                               m_fileName, m_lineNumber,
                                                translations, false, type, m_isPlural) );
         inMessage = false;
     }
@@ -277,11 +305,12 @@ MetaTranslatorMessage::MetaTranslatorMessage()
 MetaTranslatorMessage::MetaTranslatorMessage( const char *context,
                                               const char *sourceText,
                                               const char *comment,
+                                              const char *translatorComment,
                                               const QString &fileName,
                                               int lineNumber,
                                               const QStringList& translations,
                                               bool utf8, Type type, bool plural )
-    : TranslatorMessage( context, sourceText, comment, fileName, lineNumber, translations ),
+    : TranslatorMessage( context, sourceText, comment, translatorComment, fileName, lineNumber, translations ),
       utfeight( false ), ty( type ), m_plural(plural)
 {
     /*
@@ -472,23 +501,37 @@ bool MetaTranslator::save( const QString& filename ) const
                 t << "        <comment>" << evilBytes( msg.comment(),
                                                        msg.utf8() )
                   << "</comment>\n";
+            if ( !QByteArray(msg.translatorComment()).isEmpty() )
+                t << "        <translatorcomment>"
+                  << evilBytes( msg.translatorComment(), msg.utf8() )
+                  << "</translatorcomment>\n";
             t << "        <translation";
             if ( msg.type() == MetaTranslatorMessage::Unfinished )
                 t << " type=\"unfinished\"";
             else if ( msg.type() == MetaTranslatorMessage::Obsolete )
                 t << " type=\"obsolete\"";
-            t << ">";
             if (msg.isPlural()) {
-                t << "\n";
+                t << ">\n";
                 QLocale::Language l;
                 QLocale::Country c;
                 languageAndCountry(m_language, &l, &c);
                 QStringList translns = normalizedTranslations(msg, l, c);
-                for (int j = 0; j < qMax(1, translns.count()); ++j)
-                    t << "            <numerusform>" << protect( translns.value(j).toUtf8() ) << "</numerusform>\n";
+                for (int j = 0; j < qMax(1, translns.count()); ++j) {
+                    const QString &transln = translns.value(j);
+                    t << "            <numerusform";
+                    if ( transln.contains( VARIANT_DELIMITER ) )
+                        saveLengthVariants( t, "            ", transln );
+                    else
+                        t << ">"
+                          << protect( transln.toUtf8() ) << "</numerusform>\n";
+                }
                 t << "        ";
             } else {
-                t << protect( msg.translation().toUtf8() );
+                if ( msg.translation().contains( VARIANT_DELIMITER ) )
+                    saveLengthVariants( t, "        ", msg.translation() );
+                else
+                    t << ">"
+                      << protect( msg.translation().toUtf8() );
             }
             t << "</translation>\n";
             t << "    </message>\n";
@@ -498,6 +541,18 @@ bool MetaTranslator::save( const QString& filename ) const
     t << "</TS>\n";
     f.close();
     return true;
+}
+
+void MetaTranslator::saveLengthVariants(QTextStream &t, const QString &indent,
+                                        const QString &oneString) const
+{
+    QStringList variants = oneString.split ( VARIANT_DELIMITER );
+    t << " variants=\"yes\">\n" << indent;
+    for (int i = 0; i < variants.count(); ++i)
+        t << "    <lengthvariant>"
+          << protect( variants.value( i ).toUtf8() )
+          << "</lengthvariant>\n"
+          << indent;
 }
 
 void MetaTranslator::languageAndCountry(const QString &languageCode, QLocale::Language *lang, QLocale::Country *country)
@@ -538,6 +593,7 @@ bool MetaTranslator::release( const QString& filename, bool verbose,
                 QByteArray context = m.key().context();
                 QByteArray sourceText = m.key().sourceText();
                 QByteArray comment = m.key().comment();
+                QByteArray translatorComment = m.key().translatorComment();
                 QStringList translations = m.key().translations();
 
                 if ( !ignoreUnfinished
@@ -556,7 +612,7 @@ bool MetaTranslator::release( const QString& filename, bool verbose,
                                 .isNull() ) {
                         tor.insert( m.key() );
                     } else {
-                        tor.insert( TranslatorMessage(context, sourceText, "",
+                        tor.insert( TranslatorMessage(context, sourceText, "", "",
                                                       QString(), -1, translations) );
                         //filename and lineNumbers will be ignored from now.
                     }
@@ -587,14 +643,14 @@ void MetaTranslator::setLanguageCode(const QString &languageCode)
 bool MetaTranslator::contains( const char *context, const char *sourceText,
                                const char *comment ) const
 {
-    return mm.contains(MetaTranslatorMessage(context, sourceText, comment, QString(), 0));
+    return mm.contains(MetaTranslatorMessage(context, sourceText, comment, "", QString(), 0));
 }
 
 MetaTranslatorMessage MetaTranslator::find( const char *context,
         const char *sourceText, const char *comment ) const
 {
     QMap<MetaTranslatorMessage, int>::const_iterator it =
-        mm.constFind(MetaTranslatorMessage(context, sourceText, comment, QString(), 0));
+        mm.constFind(MetaTranslatorMessage(context, sourceText, comment, "", QString(), 0));
     return (it == mm.constEnd() ? MetaTranslatorMessage() : it.key());
 }
 

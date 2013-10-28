@@ -42,7 +42,7 @@ public:
 
     MetaTranslatorMessage();
     MetaTranslatorMessage( const char *context, const char *sourceText,
-                           const char *comment, 
+                           const char *comment, const char *translatorComment,
                            const QString &fileName, int lineNumber,
                            const QStringList& translations = QStringList(),
                            bool utf8 = false, Type type = Unfinished,
@@ -118,6 +118,10 @@ public:
 
 private:
     void makeFileNamesAbsolute(const QDir &oldPath);
+    // A helper method to output translations with multiple variants.  These
+    // may appear in simple translation tags or inside numerusform tags.
+    void saveLengthVariants(QTextStream &t, const QString &indent,
+                            const QString &oneString) const;
 
     typedef QMap<MetaTranslatorMessage, int> TMM;
     typedef QMap<int, MetaTranslatorMessage> TMMInv;
