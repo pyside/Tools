@@ -220,7 +220,10 @@ class QtGui(ProxyNamespace):
             return i18n_string(text or "", disambig)
         translate = staticmethod(translate)
 
-    class QIcon(ProxyClass): pass
+    class QIcon(ProxyClass): 
+        def fromTheme(self, themeName):
+            return Literal("%s.QIcon.fromTheme('%s')" % (self.module, themeName))
+
     class QConicalGradient(ProxyClass): pass
     class QLinearGradient(ProxyClass): pass
     class QRadialGradient(ProxyClass): pass
