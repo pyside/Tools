@@ -48,6 +48,11 @@ class IconCache(object):
 
         iset = _IconSet(iconset, self._base_dir)
 
+        if iset.theme:
+            icon = self._object_factory.createQObject("QIcon", None, (), 
+                                                      is_attribute=False)
+            return icon.fromTheme(iset.theme)
+
         try:
             idx = self._cache.index(iset)
         except ValueError:
@@ -77,10 +82,16 @@ class _IconSet(object):
 
     def __init__(self, iconset, base_dir):
         """Initialise the icon set from an XML tag."""
+        
+        # The icon to get from theme
+        self.theme = iconset.get('theme')
 
         # Set the pre-Qt v4.4 fallback (ie. with no roles).
-        self._fallback = self._file_name(iconset.text, base_dir)
-        self._use_fallback = True
+        if iconset.text:
+            self._fallback = self._file_name(iconset.text, base_dir)
+            self._use_fallback = True
+        else:
+            self._use_fallback = False
 
         # Parse the icon set.
         self._roles = {}
